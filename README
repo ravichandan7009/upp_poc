@@ -1,0 +1,59 @@
+bff/
+
+├── package.json
+├── tsconfig.json
+│
+└── src/
+    │
+    ├── index.ts
+    ├── server.ts
+    │
+    ├── graphql/
+    │   ├── schema.graphql
+    │   └── resolvers.ts
+    │
+    ├── types/
+    │   └── Event.ts
+    │
+    ├── seed/
+    │   ├── lookupData.ts
+    │   └── seedEvents.ts
+    │
+    ├── repository/
+    │   ├── eventRepository.ts
+    │   └── lookupRepository.ts
+    │
+    ├── services/
+    │   ├── eventService.ts
+    │   └── lookupService.ts
+    │
+    └── tests/
+        └── eventService.test.ts
+
+
+
+        frontend/
+
+src/
+
+  app/
+    apolloClient.ts
+    store.ts
+
+  graphql/
+    queries.ts
+    mutations.ts
+
+  features/
+    event/
+      eventSlice.ts
+
+  pages/
+    EventForm.tsx
+    Confirmation.tsx
+
+  routes/
+    AppRoutes.tsx
+
+  main.tsx
+  App.tsx

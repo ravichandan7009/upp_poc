@@ -1,0 +1,156 @@
+"""
+Lookup Types
+"""
+
+type Division {
+  id: ID!
+  name: String!
+}
+
+type PromoProductGroup {
+  id: ID!
+  divisionId: String!
+  name: String!
+}
+
+type StoreGroupType {
+  id: ID!
+  promoProductGroupId: String!
+  name: String!
+}
+
+type StoreGroup {
+  id: ID!
+  storeGroupTypeId: String!
+  name: String!
+}
+
+type VehicleWeek {
+  id: ID!
+  vehicleType: String!
+  week: String!
+  vehicleStart: String!
+  vehicleEnd: String!
+}
+
+"""
+Event Type
+"""
+
+type Event {
+  id: ID!
+
+  pid: String!
+
+  divisionId: String!
+  divisionName: String!
+
+  promoProductGroupId: String!
+  promoProductGroupName: String!
+
+  storeGroupTypeId: String!
+  storeGroupTypeName: String!
+
+  storeGroupId: String!
+  storeGroupName: String!
+
+  vehicleType: String!
+
+  year: Int!
+
+  startVehicleWeek: String!
+
+  vehicleStart: String!
+  vehicleEnd: String!
+
+  eventName: String!
+
+  createdAt: String!
+  updatedAt: String!
+}
+
+"""
+Input Types
+"""
+
+input CreateEventInput {
+  pid: String!
+
+  divisionId: String!
+
+  promoProductGroupId: String!
+
+  storeGroupTypeId: String!
+
+  storeGroupId: String!
+
+  vehicleType: String!
+
+  year: Int!
+
+  startVehicleWeek: String!
+}
+
+input UpdateEventInput {
+  id: ID!
+
+  pid: String!
+
+  divisionId: String!
+
+  promoProductGroupId: String!
+
+  storeGroupTypeId: String!
+
+  storeGroupId: String!
+
+  vehicleType: String!
+
+  year: Int!
+
+  startVehicleWeek: String!
+}
+
+"""
+Queries
+"""
+
+type Query {
+
+  getEventByPid(
+    pid: String!
+  ): Event
+
+  getDivisions: [Division!]!
+
+  getPromoProductGroups(
+    divisionId: String!
+  ): [PromoProductGroup!]!
+
+  getStoreGroupTypes(
+    promoProductGroupId: String!
+  ): [StoreGroupType!]!
+
+  getStoreGroups(
+    storeGroupTypeId: String!
+  ): [StoreGroup!]!
+
+  getVehicleWeeks(
+    vehicleType: String!
+  ): [VehicleWeek!]!
+}
+
+"""
+Mutations
+"""
+
+type Mutation {
+
+  createEvent(
+    input: CreateEventInput!
+  ): Event!
+
+  updateEvent(
+    input: UpdateEventInput!
+  ): Event!
+}
