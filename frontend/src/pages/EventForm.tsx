@@ -1,52 +1,31 @@
+import {useState,useEffect} from 'react';
+import {useLazyQuery,useQuery} from '@apollo/client/react';
 import {
-    useEffect,
-    useState,
-} from 'react';
+            GET_EVENT_BY_PID,
+            GET_DIVISIONS,
+            GET_PROMO_GROUPS,
+            GET_VEHICLE_WEEKS,
+            GET_STORE_GROUPS,
+            GET_STORE_GROUP_TYPES,
+        } from '../graphql/queries';
+import {CREATE_EVENT} from '../graphql/mutations';
 
-import {
-    useLazyQuery,
-    useQuery,
-} from '@apollo/client/react';
+import {useMutation} from '@apollo/client/react';
 
-import {
-    GET_EVENT_BY_PID,
-    GET_DIVISIONS,
-    GET_PROMO_GROUPS,
-    GET_VEHICLE_WEEKS,
-    GET_STORE_GROUPS,
-    GET_STORE_GROUP_TYPES,
-} from '../graphql/queries';
 
-import {
-    useMutation,
-} from '@apollo/client/react';
 
-import {
-    CREATE_EVENT,
-} from '../graphql/mutations';
-
-import { useNavigate }
-    from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import { useDispatch, useSelector } from 'react-redux';
 
-import type {
-    RootState,
-} from '../app/store';
+import type {RootState} from '../app/store';
 
-import {
-    setEvent,
-} from '../features/event/eventSlice';
+import {setEvent,resetEvent} from '../features/event/eventSlice';
 
-import { resetEvent } from '../features/event/eventSlice';
+import {validateEventForm} from '../utils/validations/eventFormValidation'
 
-const Section = ({
-        title,
-        children,
-    }: {
-        title: string;
-        children: React.ReactNode;
-    }) => (
+
+const Section = ({title,children}: {title: string; children: React.ReactNode;}) => (
         <div className="border-b border-gray-200 pb-6 mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-3">
                 {title}
@@ -59,85 +38,28 @@ const Section = ({
 
 const EventForm = () => {
 
+    const [showErrorModal, setShowErrorModal] = useState(false);
+    const [isExpanded,setIsExpanded] = useState(false);
+    const [showForm, setShowForm] = useState(false);
+    const [validationErrors,setValidationErrors] = useState([])
+    const [showNoRecordModal,setShowNoRecordModal] =useState(false);
+   
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const event = useSelector((state: RootState) => state.event);
 
-    const [
-        createEvent,
-    ] = useMutation(
-        CREATE_EVENT
-    );
+    const [createEvent] = useMutation(CREATE_EVENT);
+    const {data: divisions} = useQuery(GET_DIVISIONS);
 
-    useEffect(() => {
+    const [loadPromoGroups,{data: promoGroupsData}] = useLazyQuery(GET_PROMO_GROUPS);
+    const [fetchEvent] = useLazyQuery(GET_EVENT_BY_PID);
+    const [loadStoreGroupTypes,{data: storeGroupTypesData}] = useLazyQuery(GET_STORE_GROUP_TYPES);
+    const [loadStoreGroups,{data: storeGroupsData}] = useLazyQuery(GET_STORE_GROUPS);
+    const [loadVehicleWeeks,{data: vehicleWeeksData}] = useLazyQuery(GET_VEHICLE_WEEKS);
 
-        loadVehicleWeeks({
-            variables: {
-                vehicleType:
-                    'Weekly Insert',
-            },
-        });
-
-    }, []);
-
-    useEffect(() => {
-        dispatch(resetEvent());
-    }, []);
-
-
-
-    const {
-        data: divisions,
-        loading: divisionsLoading,
-        error: divisionsError,
-    } = useQuery(
-        GET_DIVISIONS
-    );
-
-    const [
-        loadPromoGroups,
-        {
-            data: promoGroupsData,
-        },
-    ] = useLazyQuery(
-        GET_PROMO_GROUPS
-    );
-
-    const [
-        fetchEvent,
-        { data },
-    ] = useLazyQuery(
-        GET_EVENT_BY_PID
-    );
-
-    const [
-        loadStoreGroupTypes,
-        {
-            data: storeGroupTypesData,
-            loading: storeGroupTypesLoading,
-            error: storeGroupTypesError,
-        },
-    ] = useLazyQuery(
-        GET_STORE_GROUP_TYPES
-    );
-
-    const [
-        loadStoreGroups,
-        {
-            data: storeGroupsData,
-        },
-    ] = useLazyQuery(
-        GET_STORE_GROUPS
-    );
-
-    const [
-        loadVehicleWeeks,
-        {
-            data: vehicleWeeksData,
-        },
-    ] = useLazyQuery(
-        GET_VEHICLE_WEEKS
-    );
+    
+    useEffect(() => { loadVehicleWeeks({variables: {vehicleType:'Weekly Insert'}}) }, []);
+    useEffect(() => { dispatch(resetEvent())}, []);
 
     useEffect(() => {
 
@@ -152,10 +74,7 @@ const EventForm = () => {
             },
         });
 
-    }, [
-        event.divisionId,
-        loadPromoGroups,
-    ]);
+    }, [event.divisionId, loadPromoGroups,]);
 
     useEffect(() => {
 
@@ -187,24 +106,120 @@ const EventForm = () => {
 
     }, [event.storeGroupTypeId]);
 
-    const handleFetch =
-        async () => {
+    useEffect(() => {
 
-            await fetchEvent({
-                variables: {
-                    pid: event.pid,
-                },
-            });
+        const selectedPromoGroupName =
+            promoGroupsData
+                ?.getPromoProductGroups
+                ?.find(
+                    (item: any) =>
+                        item.id === event.promoProductGroupId
+                )
+                ?.name || '';
 
-        };
+        if (
+            !selectedPromoGroupName ||
+            !event.startVehicleWeek
+        ) {
+            return;
+        }
+
+        dispatch(
+            setEvent({
+                eventName:
+                    `${selectedPromoGroupName} - ${event.startVehicleWeek}`,
+            })
+        );
+
+    }, [
+        event.promoProductGroupId,
+        event.startVehicleWeek,
+        promoGroupsData,
+    ]);
+
+const handleFetch = async () => {
+
+  const response =
+    await fetchEvent({
+      variables: {
+        pid: event.pid,
+      },
+    });
+
+  if (
+    response.data?.getEventByPid
+  ) {
+    const fetchedEvent =
+  response.data
+    ?.getEventByPid;
+
+    dispatch(
+  setEvent({
+    pid:
+      fetchedEvent.pid,
+
+    divisionId:
+      fetchedEvent.divisionId,
+
+    promoProductGroupId:
+      fetchedEvent.promoProductGroupId,
+
+    storeGroupTypeId:
+      fetchedEvent.storeGroupTypeId,
+
+    storeGroupId:
+      fetchedEvent.storeGroupId,
+
+    vehicleType:
+      fetchedEvent.vehicleType,
+
+    year:
+      fetchedEvent.year,
+
+    startVehicleWeek:
+      fetchedEvent.startVehicleWeek,
+
+    vehicleStart:
+      fetchedEvent.vehicleStart,
+
+    vehicleEnd:
+      fetchedEvent.vehicleEnd,
+
+    eventName:
+      fetchedEvent.eventName,
+
+    isExistingEvent:
+      true,
+  })
+);
+
+    setShowForm(true);
+
+  } else {
+    
+    setShowForm(false)
+    setShowNoRecordModal(true);
+
+  }
+};
 
 
-    const handleSubmit =
-        async () => {
+    const handleSubmit =async ()=>{
+        const errors = validateEventForm(event);
 
+        if (
+            Object.keys(errors)
+                .length > 0
+        ) {
+            const validationErrorMessages = Object.values(errors);
+            console.log('validationErrorMessages',validationErrorMessages);
+
+            setValidationErrors(validationErrorMessages)
+
+            setShowErrorModal(true)
+            return;
+        }
             try {
-
-                const response =
                     await createEvent({
                         variables: {
                             input: {
@@ -273,20 +288,52 @@ const EventForm = () => {
                 console.error(error);
 
             }
-        };
+        }
+ 
+        
+    
+       
 
     return (
         <div className="min-h-screen bg-gray-100 py-8">
             <div className="max-w-5xl mx-auto">
                 <div className="bg-white rounded-lg shadow-lg">
 
-                    <div className="px-8 py-5 border-b">
-                        <h1 className="text-3xl font-bold text-gray-800">
-                            Event Details
-                        </h1>
-                    </div>
+                   <div
+  className="
+    px-8
+    py-5
+    border-b
+    cursor-pointer
+    flex
+    justify-between
+    items-center
+  "
+  onClick={() =>
+    setIsExpanded(
+      !isExpanded
+    )
+  }
+>
 
-                    <div className="p-8">
+  <h1 className="text-3xl font-bold"
+  >
+    Event Details
+  </h1>
+
+  <span
+    className="text-2xl font-bold"
+  >
+    {
+      isExpanded
+        ? '−'
+        : '+'
+    }
+  </span>
+
+</div>
+{isExpanded && (
+     <div className="p-8">
 
                         {/* Sections */}
                         <Section title="PID">
@@ -304,23 +351,14 @@ const EventForm = () => {
                                         )
                                     }
                                     placeholder="Enter PID"
-                                    className="
-          border
-          p-2
-          mr-2
-        "
+                                    className="border p-2 mr-2"
                                 />
 
 
                                 {/* Existing Fetch Button */}
                                 <button
                                     onClick={handleFetch}
-                                    className="
-          bg-blue-600
-          text-white
-          px-4
-          py-2
-        "
+                                    className=" bg-blue-600 text-white px-4 py-2"
                                 >
                                     Fetch Event Details
                                 </button>
@@ -328,23 +366,125 @@ const EventForm = () => {
                             </div>
 
                         </Section>
-                        <Section title="Division">
 
-                            {/* Existing Division Dropdown */}
-                           
 
+                        {
+  showNoRecordModal && (
+
+    <div
+      className="
+        fixed
+        inset-0
+        bg-black/50
+        flex
+        items-center
+        justify-center
+        z-50
+      "
+    >
+
+      <div
+        className="
+          bg-white
+          rounded-lg
+          p-6
+          w-[450px]
+        "
+      >
+
+        <h2
+          className="
+            text-xl
+            font-bold
+            text-red-600
+            mb-4
+          "
+        >
+          No Record Found
+        </h2>
+
+        <p>
+          No event found for PID:
+          <strong>
+            {' '}
+            {event.pid}
+          </strong>
+        </p>
+
+        <p className="mt-2">
+          Would you like to create
+          a new event?
+        </p>
+
+        <div
+          className="
+            flex
+            justify-end
+            gap-3
+            mt-6
+          "
+        >
+
+          <button
+            onClick={() =>
+              setShowNoRecordModal(
+                false
+              )
+            }
+            className="
+              border
+              px-4
+              py-2
+              rounded
+            "
+          >
+            Cancel
+          </button>
+
+                                                <button
+                                                    onClick={() => {
+
+                                                        const newPid =
+                                                            event.pid;
+
+                                                        dispatch(
+                                                            resetEvent()
+                                                        );
+
+                                                        dispatch(
+                                                            setEvent({
+                                                                pid: newPid,
+
+                                                                isExistingEvent: false,
+
+                                                                editMode: false,
+                                                            })
+                                                        );
+
+                                                        setShowForm(true);
+
+                                                        setShowNoRecordModal(false);
+
+                                                    }}
+                                                >
+                                                    Create New Event
+                                                </button>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  )
+}
+
+
+
+                        {showForm && <>
+                        <Section title="Division">                           
                             <select
-                                className="
-                                        w-full
-                                        px-3
-                                        py-2
-                                        border
-                                        border-gray-300
-                                        rounded-md
-                                        focus:outline-none
-                                        focus:ring-2
-                                        focus:ring-blue-500
-"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={event.divisionId}
                                 onChange={(e) => {
 
@@ -397,17 +537,7 @@ const EventForm = () => {
 
                         <Section title="Promo Product Group">
                             <select
-                                className="
-                                w-full
-                                px-3
-                                py-2
-                                border
-                                border-gray-300
-                                rounded-md
-                                focus:outline-none
-                                focus:ring-2
-                                focus:ring-blue-500
-"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 value={event.promoProductGroupId}
                                 onChange={(e) => {
 
@@ -451,23 +581,16 @@ const EventForm = () => {
 
                         </Section>
 
-                        <Section title="Store Configuration">
-                          <div className="grid grid-cols-2 gap-6">
+                        <Section>
+                         
                             <div className="grid grid-cols-2 gap-6">
 
                                 <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                           Store Configuration
+                                        </label>
                                     <select
-                                        className="
-                                                w-full
-                                                px-3
-                                                py-2
-                                                border
-                                                border-gray-300
-                                                rounded-md
-                                                focus:outline-none
-                                                focus:ring-2
-                                                focus:ring-blue-500
-                                                "
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         value={event.storeGroupTypeId}
                                         onChange={(e) => {
 
@@ -507,21 +630,12 @@ const EventForm = () => {
 
                                 <div>
                                     {/* Existing Store Group */}
-                                    <h2 className="mt-6 mb-2">
-                                        Store Group
-                                    </h2>
+                                        <label className="block text-sm font-medium mb-2">
+                                            Store Group
+                                        </label>
 
                                     <select
-                                        className="w-full
-                                        px-3
-                                        py-2
-                                        border
-                                        border-gray-300
-                                        rounded-md
-                                        focus:outline-none
-                                        focus:ring-2
-                                        focus:ring-blue-500
-                                        "
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         value={event.storeGroupId}
                                         onChange={(e) => {
                                             dispatch(
@@ -557,31 +671,21 @@ const EventForm = () => {
                                     </select>
                                 </div>
 
-                            </div>
+                    
                             </div>
                         </Section>
+
                         <Section title="Vehicle Details">
-                            <label className="block text-sm font-medium mb-2">
-                                Start Vehicle Week
-                                </label>
 
                             <div className="grid grid-cols-3 gap-6">
 
                                 <div>
     
-
+                                    <label className="block text-sm font-medium mb-2">
+                                        Start Vehicle Week
+                                    </label>
                                     <select
-                                        className="
-                                            w-full
-                                            px-3
-                                            py-2
-                                            border
-                                            border-gray-300
-                                            rounded-md
-                                            focus:outline-none
-                                            focus:ring-2
-                                            focus:ring-blue-500
-                                            "
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         value={event.startVehicleWeek}
                                         onChange={(e) => {
 
@@ -633,9 +737,6 @@ const EventForm = () => {
 
                                                     vehicleEnd:
                                                         selectedWeek?.vehicleEnd || '',
-
-                                                    eventName:
-                                                        `${selectedPromoGroupName} - ${week}`,
                                                 })
                                             );
                                         }}
@@ -669,14 +770,7 @@ const EventForm = () => {
                                     <input
                                         value={event.vehicleStart}
                                         readOnly
-                                        className="
-                                        w-full
-                                        px-3
-                                        py-2
-                                        bg-gray-100
-                                        border
-                                        rounded-md
-                                        "
+                                        className="w-full px-3 py-2 bg-gray-100 border rounded-md"
                                     />
                                 </div>
 
@@ -688,14 +782,7 @@ const EventForm = () => {
                                     <input
                                         value={event.vehicleEnd}
                                         readOnly
-                                        className="
-                                        w-full
-                                        px-3
-                                        py-2
-                                        bg-gray-100
-                                        border
-                                        rounded-md
-                                        "
+                                        className="w-full px-3 py-2 bg-gray-100 border rounded-md "
                                     />
                                 </div>
 
@@ -709,36 +796,16 @@ const EventForm = () => {
                             <input
                                 value={event.eventName}
                                 readOnly
-                                className="
-                                    w-full
-                                    px-3
-                                    py-2
-                                    bg-gray-100
-                                    border
-                                    rounded-md
-                                    font-medium
-                                    "
+                                className="px-3 py-2 bg-gray-100 border rounded-md font-medium"
                                     />
-
-                        </Section>
+                         </Section>
 
                         <div className="flex justify-end">
-
-                            {/* Existing Submit Button */}
                             <div className="mt-8">
 
                                 <button
                                     onClick={handleSubmit}
-                                    className="
-                                    bg-blue-600
-                                    hover:bg-blue-700
-                                    text-white
-                                    px-6
-                                    py-3
-                                    rounded-md
-                                    font-medium
-                                    transition
-    "
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md transition"
                                 >
                                     Submit
                                 </button>
@@ -747,16 +814,37 @@ const EventForm = () => {
 
 
                         </div>
+                        </>}
+                  </div>
+)}
 
-
-
-
-
-
-                    </div>
-
+                   
                 </div>
             </div>
+            {
+                showErrorModal && (
+
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+                        <div className="bg-white p-6 rounded-lg w-96" >
+
+                            <h2 className="text-xl font-bold text-red-600 mb-4">
+                                Mandatory Form Details
+                            </h2>
+                            <ul>{validationErrors.map(error => <li key={error}>{error}</li>)}</ul>
+
+                            <button
+                                onClick={() =>
+                                    setShowErrorModal(false)
+                                }
+                                className="mt-6 bg-blue-600 text-white px-4 py-2 rounded">
+                                OK
+                            </button>
+
+                        </div>
+
+                    </div>
+                )
+            }
         </div>
 
     );
