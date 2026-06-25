@@ -1,8 +1,8 @@
-import EventForm
-  from './pages/EventForm';
+import AppRoutes
+  from './routes/AppRoutes';
 
 function App() {
-  return <EventForm />;
+  return <AppRoutes />;
 }
 
 export default App;

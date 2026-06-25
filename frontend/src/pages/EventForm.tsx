@@ -18,41 +18,73 @@ import {
 } from '../graphql/queries';
 
 import {
-  useMutation,
+    useMutation,
 } from '@apollo/client/react';
 
 import {
-  CREATE_EVENT,
+    CREATE_EVENT,
 } from '../graphql/mutations';
+
+import { useNavigate }
+    from 'react-router-dom';
+
+import { useDispatch, useSelector } from 'react-redux';
+
+import type {
+    RootState,
+} from '../app/store';
+
+import {
+    setEvent,
+} from '../features/event/eventSlice';
+
+import { resetEvent } from '../features/event/eventSlice';
+
+const Section = ({
+        title,
+        children,
+    }: {
+        title: string;
+        children: React.ReactNode;
+    }) => (
+        <div className="border-b border-gray-200 pb-6 mb-6">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+                {title}
+            </label>
+
+            {children}
+        </div>
+    );
+
 
 const EventForm = () => {
 
-    const [pid, setPid] = useState('');
-    const [selectedDivision, setSelectedDivision] = useState('');
-    const [selectedPromoGroup, setSelectedPromoGroup] = useState('');
-    const [selectedStoreGroupType, setSelectedStoreGroupType] = useState('');
-    const [selectedStoreGroup, setSelectedStoreGroup] = useState('');
-    const [selectedVehicleWeek, setSelectedVehicleWeek] = useState('');
-    const [vehicleStart, setVehicleStart] = useState('');
-    const [vehicleEnd, setVehicleEnd] = useState('')
-    const [eventName, setEventName] = useState('');
+    const navigate = useNavigate();
+    const dispatch = useDispatch();
+    const event = useSelector((state: RootState) => state.event);
 
     const [
-  createEvent,
-] = useMutation(
-  CREATE_EVENT
-);
+        createEvent,
+    ] = useMutation(
+        CREATE_EVENT
+    );
 
     useEffect(() => {
 
-  loadVehicleWeeks({
-    variables: {
-      vehicleType:
-        'Weekly Insert',
-    },
-  });
+        loadVehicleWeeks({
+            variables: {
+                vehicleType:
+                    'Weekly Insert',
+            },
+        });
 
-}, []);
+    }, []);
+
+    useEffect(() => {
+        dispatch(resetEvent());
+    }, []);
+
+
 
     const {
         data: divisions,
@@ -79,448 +111,654 @@ const EventForm = () => {
     );
 
     const [
-  loadStoreGroupTypes,
-  {
-    data: storeGroupTypesData,
-  },
-] = useLazyQuery(
-  GET_STORE_GROUP_TYPES
-);
+        loadStoreGroupTypes,
+        {
+            data: storeGroupTypesData,
+            loading: storeGroupTypesLoading,
+            error: storeGroupTypesError,
+        },
+    ] = useLazyQuery(
+        GET_STORE_GROUP_TYPES
+    );
 
-const [
-  loadStoreGroups,
-  {
-    data: storeGroupsData,
-  },
-] = useLazyQuery(
-  GET_STORE_GROUPS
-);
+    const [
+        loadStoreGroups,
+        {
+            data: storeGroupsData,
+        },
+    ] = useLazyQuery(
+        GET_STORE_GROUPS
+    );
 
-const [
-  loadVehicleWeeks,
-  {
-    data: vehicleWeeksData,
-  },
-] = useLazyQuery(
-  GET_VEHICLE_WEEKS
-);
+    const [
+        loadVehicleWeeks,
+        {
+            data: vehicleWeeksData,
+        },
+    ] = useLazyQuery(
+        GET_VEHICLE_WEEKS
+    );
+
+    useEffect(() => {
+
+        if (!event.divisionId) {
+            return;
+        }
+
+        loadPromoGroups({
+            variables: {
+                divisionId:
+                    event.divisionId,
+            },
+        });
+
+    }, [
+        event.divisionId,
+        loadPromoGroups,
+    ]);
+
+    useEffect(() => {
+
+        if (!event.promoProductGroupId) {
+            return;
+        }
+
+        loadStoreGroupTypes({
+            variables: {
+                promoProductGroupId:
+                    event.promoProductGroupId,
+            },
+        });
+
+    }, [event.promoProductGroupId]);
+
+    useEffect(() => {
+
+        if (!event.storeGroupTypeId) {
+            return;
+        }
+
+        loadStoreGroups({
+            variables: {
+                storeGroupTypeId:
+                    event.storeGroupTypeId,
+            },
+        });
+
+    }, [event.storeGroupTypeId]);
 
     const handleFetch =
         async () => {
 
             await fetchEvent({
                 variables: {
-                    pid,
+                    pid: event.pid,
                 },
             });
 
         };
 
 
-        const handleSubmit =
-  async () => {
+    const handleSubmit =
+        async () => {
 
-    try {
-        if(
- !pid ||
- !selectedDivision ||
- !selectedPromoGroup ||
- !selectedStoreGroupType ||
- !selectedStoreGroup ||
- !selectedVehicleWeek
-){
- alert(
-  'All fields are required'
- );
- return;
-}
+            try {
 
-      const response =
-        await createEvent({
-          variables: {
-            input: {
+                const response =
+                    await createEvent({
+                        variables: {
+                            input: {
 
-              pid,
+                                pid: event.pid,
 
-              divisionId:
-                selectedDivision,
+                                divisionId:
+                                    event.divisionId,
 
-              promoProductGroupId:
-                selectedPromoGroup,
+                                promoProductGroupId:
+                                    event.promoProductGroupId,
 
-              storeGroupTypeId:
-                selectedStoreGroupType,
+                                storeGroupTypeId:
+                                    event.storeGroupTypeId,
 
-              storeGroupId:
-                selectedStoreGroup,
+                                storeGroupId:
+                                    event.storeGroupId,
 
-              vehicleType:
-                'Weekly Insert',
+                                vehicleType:
+                                    event.vehicleType,
 
-              year: 2026,
+                                year: event.year,
 
-              startVehicleWeek:
-                selectedVehicleWeek,
-            },
-          },
-        });
+                                startVehicleWeek:
+                                    event.startVehicleWeek,
+                            },
+                        },
+                    });
 
-      console.log(
-        response.data
-      );
 
-      alert(
-        'Event Created Successfully'
-      );
+                dispatch(
+                    setEvent({
+                        pid: event.pid,
 
-    } catch(error) {
+                        divisionId:
+                            event.divisionId,
 
-      console.error(error);
+                        promoProductGroupId:
+                            event.promoProductGroupId,
 
-      alert(
-        'Failed to Create Event'
-      );
-    }
-};
+                        storeGroupTypeId:
+                            event.storeGroupTypeId,
 
+                        storeGroupId:
+                            event.storeGroupId,
+
+                        startVehicleWeek:
+                            event.startVehicleWeek,
+
+                        vehicleStart:
+                            event.vehicleStart,
+
+                        vehicleEnd:
+                            event.vehicleEnd,
+
+                        eventName:
+                            event.eventName,
+                    })
+                );
+                navigate('/confirmation');
+
+
+
+            } catch (error) {
+
+                console.error(error);
+
+            }
+        };
 
     return (
-        <div className="p-6">
+        <div className="min-h-screen bg-gray-100 py-8">
+            <div className="max-w-5xl mx-auto">
+                <div className="bg-white rounded-lg shadow-lg">
 
-            <h1 className="text-2xl font-bold mb-6">
-                Event Details
-            </h1>
+                    <div className="px-8 py-5 border-b">
+                        <h1 className="text-3xl font-bold text-gray-800">
+                            Event Details
+                        </h1>
+                    </div>
 
-            <input
-                value={pid}
-                onChange={(e) =>
-                    setPid(
-                        e.target.value
-                    )
-                }
-                placeholder="Enter PID"
-                className="
+                    <div className="p-8">
+
+                        {/* Sections */}
+                        <Section title="PID">
+
+                            <div className="flex gap-4">
+
+                                {/* Existing PID input */}
+                                <input
+                                    value={event.pid ?? ''}
+                                    onChange={(e) =>
+                                        dispatch(
+                                            setEvent({
+                                                pid: e.target.value,
+                                            })
+                                        )
+                                    }
+                                    placeholder="Enter PID"
+                                    className="
           border
           p-2
           mr-2
         "
-            />
+                                />
 
-            <button
-                onClick={handleFetch}
-                className="
+
+                                {/* Existing Fetch Button */}
+                                <button
+                                    onClick={handleFetch}
+                                    className="
           bg-blue-600
           text-white
           px-4
           py-2
         "
-            >
-                Fetch Event Details
-            </button>
+                                >
+                                    Fetch Event Details
+                                </button>
 
-            {data?.getEventByPid && (
-                <pre className="mt-6">
-                    {JSON.stringify(
-                        data.getEventByPid,
-                        null,
-                        2
-                    )}
-                </pre>
-            )}
-            <h2 className="mt-8 mb-2">
-                Division
-            </h2>
+                            </div>
 
-            <select
-                className="border p-2 w-64"
-                value={selectedDivision}
-                onChange={(e) => {
+                        </Section>
+                        <Section title="Division">
 
-                    const divisionId =
-                        e.target.value;
+                            {/* Existing Division Dropdown */}
+                           
 
-                    setSelectedDivision(
-                        divisionId
-                    );
+                            <select
+                                className="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        border
+                                        border-gray-300
+                                        rounded-md
+                                        focus:outline-none
+                                        focus:ring-2
+                                        focus:ring-blue-500
+"
+                                value={event.divisionId}
+                                onChange={(e) => {
 
-                    setSelectedPromoGroup('');
+                                    const divisionId =
+                                        e.target.value;
 
-                    loadPromoGroups({
-                        variables: {
-                            divisionId,
-                        },
-                    });
-                }}
-            >
-                <option value="">
-                    Select Division
-                </option>
 
-                {
-                    divisions?.getDivisions?.map(
-                        (division: any) => (
-                            <option
-                                key={division.id}
-                                value={division.id}
+                                    dispatch(
+                                        setEvent({
+                                            divisionId,
+                                            promoProductGroupId: '',
+
+                                            storeGroupTypeId: '',
+
+                                            storeGroupId: '',
+                                        })
+                                    );
+
+
+                                    loadPromoGroups({
+                                        variables: {
+                                            divisionId,
+                                        },
+                                    });
+                                }}
                             >
-                                {division.name}
-                            </option>
-                        )
-                    )
-                }
-            </select>
+                                <option value="">
+                                    Select Division
+                                </option>
 
-            <h2 className="mt-6 mb-2">
-  Promo Product Group
-</h2>
+                                {
+                                    divisions?.getDivisions?.map(
+                                        (division: any) => (
+                                            <option
+                                                key={division.id}
+                                                value={division.id}
+                                            >
+                                                {division.name}
+                                            </option>
+                                        )
+                                    )
+                                }
+                            </select>
 
-<select
-  className="border p-2 w-64"
-  value={selectedPromoGroup}
-  onChange={(e) => {
+                            <div className="mt-2 text-sm text-gray-500">
+                            Selected: {event.divisionId || '-'}
+                            </div>
+                        </Section>
 
-  const promoGroupId =
-    e.target.value;
 
-  setSelectedPromoGroup(
-    promoGroupId
-  );
+                        <Section title="Promo Product Group">
+                            <select
+                                className="
+                                w-full
+                                px-3
+                                py-2
+                                border
+                                border-gray-300
+                                rounded-md
+                                focus:outline-none
+                                focus:ring-2
+                                focus:ring-blue-500
+"
+                                value={event.promoProductGroupId}
+                                onChange={(e) => {
 
-  setSelectedStoreGroupType('');
+                                    dispatch(
+                                        setEvent({
+                                            promoProductGroupId:
+                                                e.target.value,
 
-  setSelectedStoreGroup('');
+                                            storeGroupTypeId: '',
 
-  loadStoreGroupTypes({
-    variables: {
-      promoProductGroupId:
-        promoGroupId,
-    },
-  });
-}}
->
-  <option value="">
-    Select Promo Product Group
-  </option>
+                                            storeGroupId: '',
+                                        })
+                                    );
 
-  {
-    promoGroupsData
-      ?.getPromoProductGroups
-      ?.map(
-        (group: any) => (
-          <option
-            key={group.id}
-            value={group.id}
-          >
-            {group.name}
-          </option>
-        )
-      )
-  }
+                                }}
+                            >
+                                <option value="">
+                                    Select Promo Product Group
+                                </option>
 
-</select>
+                                {
+                                    promoGroupsData
+                                        ?.getPromoProductGroups
+                                        ?.map(
+                                            (group: any) => (
+                                                <option
+                                                    key={group.id}
+                                                    value={group.id}
+                                                >
+                                                    {group.name}
+                                                </option>
+                                            )
+                                        )
+                                }
+                            </select>
 
-<pre>
-{
- JSON.stringify(
-  promoGroupsData,
-  null,
-  2
- )
-}
-</pre>
+                            <div>
+                                Selected Promo:
+                                {event.promoProductGroupId}
+                            </div>
 
-<h2 className="mt-6 mb-2">
-  Store Group Type
-</h2>
+                        </Section>
 
-<select
-  className="border p-2 w-64"
-  value={selectedStoreGroupType}
-  onChange={(e) => {
+                        <Section title="Store Configuration">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="grid grid-cols-2 gap-6">
 
-    const value =
-      e.target.value;
+                                <div>
+                                    <select
+                                        className="
+                                                w-full
+                                                px-3
+                                                py-2
+                                                border
+                                                border-gray-300
+                                                rounded-md
+                                                focus:outline-none
+                                                focus:ring-2
+                                                focus:ring-blue-500
+                                                "
+                                        value={event.storeGroupTypeId}
+                                        onChange={(e) => {
 
-    setSelectedStoreGroupType(
-      value
-    );
+                                            const storeGroupTypeId =
+                                                e.target.value;
 
-    setSelectedStoreGroup('');
+                                            dispatch(
+                                                setEvent({
+                                                    storeGroupTypeId,
 
-    loadStoreGroups({
-      variables: {
-        storeGroupTypeId: value,
-      },
-    });
-  }}
->
-  <option value="">
-    Select Store Group Type
-  </option>
+                                                    storeGroupId: '',
+                                                })
+                                            );
 
-  {
-    storeGroupTypesData
-      ?.getStoreGroupTypes
-      ?.map(
-        (item:any) => (
-          <option
-            key={item.id}
-            value={item.id}
-          >
-            {item.name}
-          </option>
-        )
-      )
-  }
-</select>
+                                        }}
+                                    >
+                                        <option value="">
+                                            Select Store Group Type
+                                        </option>
 
-<h2 className="mt-6 mb-2">
-  Store Group
-</h2>
+                                        {
+                                            storeGroupTypesData
+                                                ?.getStoreGroupTypes
+                                                ?.map(
+                                                    (item: any) => (
+                                                        <option
+                                                            key={item.id}
+                                                            value={item.id}
+                                                        >
+                                                            {item.name}
+                                                        </option>
+                                                    )
+                                                )
+                                        }
+                                    </select>
+                                </div>
 
-<select
-  className="border p-2 w-64"
-  value={selectedStoreGroup}
-  onChange={(e) =>
-    setSelectedStoreGroup(
-      e.target.value
-    )
-  }
->
-  <option value="">
-    Select Store Group
-  </option>
+                                <div>
+                                    {/* Existing Store Group */}
+                                    <h2 className="mt-6 mb-2">
+                                        Store Group
+                                    </h2>
 
-  {
-    storeGroupsData
-      ?.getStoreGroups
-      ?.map(
-        (item:any) => (
-          <option
-            key={item.id}
-            value={item.id}
-          >
-            {item.name}
-          </option>
-        )
-      )
-  }
-</select>
-<h2 className="mt-6 mb-2">
-  Start Vehicle Week
-</h2>
+                                    <select
+                                        className="w-full
+                                        px-3
+                                        py-2
+                                        border
+                                        border-gray-300
+                                        rounded-md
+                                        focus:outline-none
+                                        focus:ring-2
+                                        focus:ring-blue-500
+                                        "
+                                        value={event.storeGroupId}
+                                        onChange={(e) => {
+                                            dispatch(
+                                                setEvent({
+                                                    storeGroupId:
+                                                        e.target.value,
+                                                })
 
-<select
-  className="border p-2 w-64"
-  value={selectedVehicleWeek}
-  onChange={(e) => {
+                                            )
 
-    const week =
-      e.target.value;
+                                        }
 
-    setSelectedVehicleWeek(
-      week
-    );
+                                        }
+                                    >
+                                        <option value="">
+                                            Select Store Group
+                                        </option>
 
-    const selectedWeek =
-      vehicleWeeksData
-        ?.getVehicleWeeks
-        ?.find(
-          (item:any) =>
-            item.week === week
-        );
+                                        {
+                                            storeGroupsData
+                                                ?.getStoreGroups
+                                                ?.map(
+                                                    (item: any) => (
+                                                        <option
+                                                            key={item.id}
+                                                            value={item.id}
+                                                        >
+                                                            {item.name}
+                                                        </option>
+                                                    )
+                                                )
+                                        }
+                                    </select>
+                                </div>
 
-    setVehicleStart(
-      selectedWeek
-        ?.vehicleStart || ''
-    );
+                            </div>
+                            </div>
+                        </Section>
+                        <Section title="Vehicle Details">
+                            <label className="block text-sm font-medium mb-2">
+                                Start Vehicle Week
+                                </label>
 
-    setVehicleEnd(
-      selectedWeek
-        ?.vehicleEnd || ''
-    );
-    const selectedPromoGroupName =
-  promoGroupsData
-    ?.getPromoProductGroups
-    ?.find(
-      (item:any) =>
-        item.id === selectedPromoGroup
-    )
-    ?.name || '';
+                            <div className="grid grid-cols-3 gap-6">
 
-setEventName(
-  `${selectedPromoGroupName} - ${week}`
-);
-  }}
->
-  <option value="">
-    Select Vehicle Week
-  </option>
+                                <div>
+    
 
-  {
-    vehicleWeeksData
-      ?.getVehicleWeeks
-      ?.map(
-        (item:any) => (
-          <option
-            key={item.id}
-            value={item.week}
-          >
-            {item.week}
-          </option>
-        )
-      )
-  }
-</select>
-<h2 className="mt-6 mb-2">
-  Vehicle Start
-</h2>
+                                    <select
+                                        className="
+                                            w-full
+                                            px-3
+                                            py-2
+                                            border
+                                            border-gray-300
+                                            rounded-md
+                                            focus:outline-none
+                                            focus:ring-2
+                                            focus:ring-blue-500
+                                            "
+                                        value={event.startVehicleWeek}
+                                        onChange={(e) => {
 
-<input
-  value={vehicleStart}
-  readOnly
-  className="border p-2"
-/>
+                                            const week =
+                                                e.target.value;
 
-<h2 className="mt-6 mb-2">
-  Vehicle End
-</h2>
+                                            dispatch(
+                                                setEvent({
+                                                    startVehicleWeek: week,
+                                                })
+                                            );
 
-<input
-  value={vehicleEnd}
-  readOnly
-  className="border p-2"
-/>
+                                            const selectedWeek =
+                                                vehicleWeeksData
+                                                    ?.getVehicleWeeks
+                                                    ?.find(
+                                                        (item: any) =>
+                                                            item.week === week
+                                                    );
 
-<h2 className="mt-6 mb-2">
-  Event Name
-</h2>
+                                            dispatch(
+                                                setEvent({
 
-<input
-  value={eventName}
-  readOnly
-  className="border p-2 w-full"
-/>
-<div className="mt-8">
+                                                    startVehicleWeek: week,
 
-  <button
-    onClick={handleSubmit}
-    className="
-      bg-green-600
-      text-white
-      px-6
-      py-2
-      rounded
+                                                    vehicleStart:
+                                                        selectedWeek?.vehicleStart || '',
+
+                                                    vehicleEnd:
+                                                        selectedWeek?.vehicleEnd || '',
+                                                })
+                                            );
+                                            const selectedPromoGroupName =
+                                                promoGroupsData
+                                                    ?.getPromoProductGroups
+                                                    ?.find(
+                                                        (item: any) =>
+                                                            item.id === event.promoProductGroupId
+                                                    )
+                                                    ?.name || '';
+
+                                            dispatch(
+                                                setEvent({
+
+                                                    startVehicleWeek: week,
+
+                                                    vehicleStart:
+                                                        selectedWeek?.vehicleStart || '',
+
+                                                    vehicleEnd:
+                                                        selectedWeek?.vehicleEnd || '',
+
+                                                    eventName:
+                                                        `${selectedPromoGroupName} - ${week}`,
+                                                })
+                                            );
+                                        }}
+                                    >
+                                        <option value="">
+                                            Select Vehicle Week
+                                        </option>
+
+                                        {
+                                            vehicleWeeksData
+                                                ?.getVehicleWeeks
+                                                ?.map(
+                                                    (item: any) => (
+                                                        <option
+                                                            key={item.id}
+                                                            value={item.week}
+                                                        >
+                                                            {item.week}
+                                                        </option>
+                                                    )
+                                                )
+                                        }
+                                    </select>
+                                </div>
+
+                                <div>
+                                   <label className="block text-sm font-medium mb-2">
+                                    Vehicle Start
+                                    </label>
+
+                                    <input
+                                        value={event.vehicleStart}
+                                        readOnly
+                                        className="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        bg-gray-100
+                                        border
+                                        rounded-md
+                                        "
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                    Vehicle End
+                                    </label>
+
+                                    <input
+                                        value={event.vehicleEnd}
+                                        readOnly
+                                        className="
+                                        w-full
+                                        px-3
+                                        py-2
+                                        bg-gray-100
+                                        border
+                                        rounded-md
+                                        "
+                                    />
+                                </div>
+
+                            </div>
+
+                        </Section>
+
+                        <Section title="Event Name">
+
+
+                            <input
+                                value={event.eventName}
+                                readOnly
+                                className="
+                                    w-full
+                                    px-3
+                                    py-2
+                                    bg-gray-100
+                                    border
+                                    rounded-md
+                                    font-medium
+                                    "
+                                    />
+
+                        </Section>
+
+                        <div className="flex justify-end">
+
+                            {/* Existing Submit Button */}
+                            <div className="mt-8">
+
+                                <button
+                                    onClick={handleSubmit}
+                                    className="
+                                    bg-blue-600
+                                    hover:bg-blue-700
+                                    text-white
+                                    px-6
+                                    py-3
+                                    rounded-md
+                                    font-medium
+                                    transition
     "
-  >
-    Submit
-  </button>
+                                >
+                                    Submit
+                                </button>
 
-</div>
+                            </div>
+
+
+                        </div>
 
 
 
+
+
+
+                    </div>
+
+                </div>
+            </div>
         </div>
+
     );
 };
 
