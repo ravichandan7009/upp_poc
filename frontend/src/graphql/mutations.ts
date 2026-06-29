@@ -15,3 +15,23 @@ export const CREATE_EVENT = gql`
     }
   }
 `;
+
+export const UPDATE_EVENT = gql`
+ mutation UpdateEvent(
+  $input: UpdateEventInput!
+) {
+
+  updateEvent(
+    input: $input
+  ) {
+
+    id
+    pid
+    eventName
+
+  }
+
+}
+`;
+
+
