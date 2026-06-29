@@ -8,7 +8,7 @@ import {
             GET_STORE_GROUPS,
             GET_STORE_GROUP_TYPES,
         } from '../graphql/queries';
-import {CREATE_EVENT} from '../graphql/mutations';
+import {CREATE_EVENT, UPDATE_EVENT} from '../graphql/mutations';
 
 import {useMutation} from '@apollo/client/react';
 
@@ -48,7 +48,10 @@ const EventForm = () => {
     const dispatch = useDispatch();
     const event = useSelector((state: RootState) => state.event);
 
+    console.log('Redux Event:', event);
+
     const [createEvent] = useMutation(CREATE_EVENT);
+    const [updateEvent] = useMutation(UPDATE_EVENT);
     const {data: divisions} = useQuery(GET_DIVISIONS);
 
     const [loadPromoGroups,{data: promoGroupsData}] = useLazyQuery(GET_PROMO_GROUPS);
@@ -60,9 +63,22 @@ const EventForm = () => {
     const [loadStoreGroups,{data: storeGroupsData}] = useLazyQuery(GET_STORE_GROUPS);
     const [loadVehicleWeeks,{data: vehicleWeeksData}] = useLazyQuery(GET_VEHICLE_WEEKS);
 
+    const isReadOnly = event.isExistingEvent && !event.editMode;
+
     
     useEffect(() => { loadVehicleWeeks({variables: {vehicleType:'Weekly Insert'}}) }, []);
-    useEffect(() => { dispatch(resetEvent())}, []);
+   useEffect(() => {
+
+    if (
+        event.editMode ||
+        event.isExistingEvent
+    ) {
+        return;
+    }
+
+    dispatch(resetEvent());
+
+}, []);
 
     useEffect(() => {
 
@@ -140,14 +156,24 @@ const EventForm = () => {
         promoGroupsData,
     ]);
 
+    useEffect(() => {
+
+    if (event.editMode) {
+
+        setShowForm(true);
+
+        setIsExpanded(true);
+
+    }
+
+}, [event.editMode]);
+
 const handleFetch = async () => {
 
-  const response =
-    await fetchEvent({
-      variables: {
-        pid: event.pid,
-      },
-    });
+  const response = await fetchEvent({ variables: {pid: event.pid,},});
+
+  console.log('response', response)
+
   if (
     response.data?.getEventByPid
   ) {
@@ -157,6 +183,9 @@ const handleFetch = async () => {
 
     dispatch(
   setEvent({
+
+    id: fetchedEvent.id,
+
     pid:
       fetchedEvent.pid,
 
@@ -192,6 +221,7 @@ const handleFetch = async () => {
 
     isExistingEvent:
       true,
+    editMode: false
   })
 );
 
@@ -215,76 +245,130 @@ const handleFetch = async () => {
             setShowErrorModal(true)
             return;
         }
-            try {
-                    await createEvent({
-                        variables: {
-                            input: {
+        try {
+            if (event.isExistingEvent) {
+                await updateEvent({
 
-                                pid: event.pid,
+                    variables: {
 
-                                divisionId:
-                                    event.divisionId,
+                        input: {
 
-                                promoProductGroupId:
-                                    event.promoProductGroupId,
+                            id: event.id,
 
-                                storeGroupTypeId:
-                                    event.storeGroupTypeId,
+                            pid: event.pid,
 
-                                storeGroupId:
-                                    event.storeGroupId,
+                            divisionId:
+                                event.divisionId,
 
-                                vehicleType:
-                                    event.vehicleType,
+                            promoProductGroupId:
+                                event.promoProductGroupId,
 
-                                year: event.year,
+                            storeGroupTypeId:
+                                event.storeGroupTypeId,
 
-                                startVehicleWeek:
-                                    event.startVehicleWeek,
-                            },
+                            storeGroupId:
+                                event.storeGroupId,
+
+                            vehicleType:
+                                event.vehicleType,
+
+                            year:
+                                event.year,
+
+                            startVehicleWeek:
+                                event.startVehicleWeek,
+
+                        }
+
+                    }
+
+                });
+
+
+
+            } else {
+                await createEvent({
+                    variables: {
+                        input: {
+
+                            pid: event.pid,
+
+                            divisionId:
+                                event.divisionId,
+
+                            promoProductGroupId:
+                                event.promoProductGroupId,
+
+                            storeGroupTypeId:
+                                event.storeGroupTypeId,
+
+                            storeGroupId:
+                                event.storeGroupId,
+
+                            vehicleType:
+                                event.vehicleType,
+
+                            year: event.year,
+
+                            startVehicleWeek:
+                                event.startVehicleWeek,
                         },
-                    });
+                    },
+                });
 
 
-                dispatch(
-                    setEvent({
-                        pid: event.pid,
-
-                        divisionId:
-                            event.divisionId,
-
-                        promoProductGroupId:
-                            event.promoProductGroupId,
-
-                        storeGroupTypeId:
-                            event.storeGroupTypeId,
-
-                        storeGroupId:
-                            event.storeGroupId,
-
-                        startVehicleWeek:
-                            event.startVehicleWeek,
-
-                        vehicleStart:
-                            event.vehicleStart,
-
-                        vehicleEnd:
-                            event.vehicleEnd,
-
-                        eventName:
-                            event.eventName,
-                    })
-                );
-                navigate('/confirmation');
+            }
 
 
+            dispatch(
+                setEvent({
+                    pid: event.pid,
 
-            } catch (error) {
+                    divisionId:
+                        event.divisionId,
+
+                    promoProductGroupId:
+                        event.promoProductGroupId,
+
+                    storeGroupTypeId:
+                        event.storeGroupTypeId,
+
+                    storeGroupId:
+                        event.storeGroupId,
+
+                    startVehicleWeek:
+                        event.startVehicleWeek,
+
+                    vehicleStart:
+                        event.vehicleStart,
+
+                    vehicleEnd:
+                        event.vehicleEnd,
+
+                    eventName:
+                        event.eventName,
+                })
+            );
+            navigate('/confirmation');
+
+
+
+        } catch (error) {
 
                 console.error(error);
 
             }
         }
+
+    const handleEdit = () => {
+
+  dispatch(
+    setEvent({
+      editMode: true,
+    })
+  );
+
+};
  
         
     
@@ -507,6 +591,7 @@ const handleFetch = async () => {
                                         },
                                     });
                                 }}
+                                disabled = {isReadOnly}
                             >
                                 <option value="">
                                     Select Division
@@ -559,6 +644,7 @@ const handleFetch = async () => {
                                     );
 
                                 }}
+                                disabled = {isReadOnly}
                             >
                                 <option value="">
                                     Select Promo Product Group
@@ -621,6 +707,7 @@ const handleFetch = async () => {
                                             );
 
                                         }}
+                                        disabled = {isReadOnly}
                                     >
                                         <option value="">
                                             Select Store Group Type
@@ -673,6 +760,7 @@ const handleFetch = async () => {
                                         }
 
                                         }
+                                        disabled = {isReadOnly}
                                     >
                                         <option value="">
                                             Select Store Group
@@ -773,6 +861,7 @@ const handleFetch = async () => {
                                                 })
                                             );
                                         }}
+                                        disabled = {isReadOnly}
                                     >
                                         <option value="">
                                             Select Vehicle Week
@@ -843,20 +932,37 @@ const handleFetch = async () => {
                                     />
                          </Section>
 
-                        <div className="flex justify-end">
-                            <div className="mt-8">
+                                <div className="mt-8 flex gap-4">
 
-                                <button
-                                    onClick={handleSubmit}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md transition"
-                                >
-                                    Submit
-                                </button>
+                                    {
+                                        event.isExistingEvent &&
+                                        !event.editMode && (
 
-                            </div>
+                                            <button
+                                                onClick={handleEdit}
+                                                className="
+                                            bg-amber-500
+                                            text-white
+                                            px-6
+                                            py-2
+                                            rounded-md "
+                                            >
+                                                Edit Event
+                                            </button>
+
+                                        )
+                                    }
+
+                                    <button
+                                        onClick={handleSubmit}
+                                        className={` ${event.editMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'} text-white px-6 py-3 rounded-md transition`}
+                                    >
+                                        {event.editMode ? `Update Event` : `Submit`}
+                                    </button>
 
 
-                        </div>
+                                </div>
+
                         </>}
                   </div>
 )}

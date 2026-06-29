@@ -83,15 +83,15 @@ export const resolvers = {
       );
     },
 
-    updateEvent(
-      _: unknown,
-      args: {
-        input: any;
-      }
-    ) {
-      return eventService.updateEvent(
-        args.input
-      );
-    },
+  updateEvent: (
+  _: any,
+  { input }: any
+) => {
+
+  return eventService.updateEvent(
+    input
+  );
+
+},
   },
 };
