@@ -25,7 +25,7 @@ import {setEvent,resetEvent} from '../features/event/eventSlice';
 import {validateEventForm} from '../utils/validations/eventFormValidation'
 
 
-const Section = ({title,children}: {title: string; children: React.ReactNode;}) => (
+const Section = ({title,children}: {title?: string; children: React.ReactNode;}) => (
         <div className="border-b border-gray-200 pb-6 mb-6">
             <label className="block text-sm font-semibold text-gray-700 mb-3">
                 {title}
@@ -52,7 +52,10 @@ const EventForm = () => {
     const {data: divisions} = useQuery(GET_DIVISIONS);
 
     const [loadPromoGroups,{data: promoGroupsData}] = useLazyQuery(GET_PROMO_GROUPS);
-    const [fetchEvent] = useLazyQuery(GET_EVENT_BY_PID);
+    const [fetchEvent] = useLazyQuery(GET_EVENT_BY_PID, {
+        fetchPolicy:
+            'network-only',
+    });
     const [loadStoreGroupTypes,{data: storeGroupTypesData}] = useLazyQuery(GET_STORE_GROUP_TYPES);
     const [loadStoreGroups,{data: storeGroupsData}] = useLazyQuery(GET_STORE_GROUPS);
     const [loadVehicleWeeks,{data: vehicleWeeksData}] = useLazyQuery(GET_VEHICLE_WEEKS);
@@ -145,7 +148,6 @@ const handleFetch = async () => {
         pid: event.pid,
       },
     });
-
   if (
     response.data?.getEventByPid
   ) {
@@ -206,16 +208,10 @@ const handleFetch = async () => {
 
     const handleSubmit =async ()=>{
         const errors = validateEventForm(event);
-
-        if (
-            Object.keys(errors)
-                .length > 0
+     if (
+            Object.keys(errors).length > 0
         ) {
-            const validationErrorMessages = Object.values(errors);
-            console.log('validationErrorMessages',validationErrorMessages);
-
-            setValidationErrors(validationErrorMessages)
-
+            setValidationErrors(errors)
             setShowErrorModal(true)
             return;
         }
@@ -466,6 +462,7 @@ const handleFetch = async () => {
                                                         setShowNoRecordModal(false);
 
                                                     }}
+                                                    className=" bg-blue-600 text-white px-4 py-2"
                                                 >
                                                     Create New Event
                                                 </button>
@@ -528,6 +525,15 @@ const handleFetch = async () => {
                                     )
                                 }
                             </select>
+                                    {
+                                        validationErrors?.divisionId && event.divisionId === "" &&(
+                                            <p
+                                                className=" text-red-500 text-sm mt-1"
+                                            >
+                                                {validationErrors?.divisionId}
+                                            </p>
+                                        )
+                                    }
 
                             <div className="mt-2 text-sm text-gray-500">
                             Selected: {event.divisionId || '-'}
@@ -573,6 +579,15 @@ const handleFetch = async () => {
                                         )
                                 }
                             </select>
+                             {
+                                        (validationErrors?.promoProductGroupId && event.promoProductGroupId === "") && (
+                                            <p
+                                                className=" text-red-500 text-sm mt-1"
+                                            >
+                                                {validationErrors?.promoProductGroupId}
+                                            </p>
+                                        )
+                                    }
 
                             <div>
                                 Selected Promo:
@@ -626,6 +641,15 @@ const handleFetch = async () => {
                                                 )
                                         }
                                     </select>
+                                        {
+                                        (validationErrors?.storeGroupTypeId && event.storeGroupTypeId === '') && (
+                                            <p
+                                                className=" text-red-500 text-sm mt-1"
+                                            >
+                                                {validationErrors?.storeGroupTypeId}
+                                            </p>
+                                        )
+                                    }
                                 </div>
 
                                 <div>
@@ -669,6 +693,15 @@ const handleFetch = async () => {
                                                 )
                                         }
                                     </select>
+                                     {
+                                        (validationErrors?.storeGroupId && event.storeGroupId === '') && (
+                                            <p
+                                                className=" text-red-500 text-sm mt-1"
+                                            >
+                                                {validationErrors?.storeGroupId}
+                                            </p>
+                                        )
+                                    }
                                 </div>
 
                     
@@ -759,6 +792,16 @@ const handleFetch = async () => {
                                                     )
                                                 )
                                         }
+                                        {
+                                        validationErrors?.startVehicleWeek && (
+                                            <p
+                                                className=" text-red-500 text-sm mt-1"
+                                            >
+                                                {validationErrors?.startVehicleWeek}
+                                            </p>
+                                        )
+                                    }
+
                                     </select>
                                 </div>
 
@@ -821,30 +864,6 @@ const handleFetch = async () => {
                    
                 </div>
             </div>
-            {
-                showErrorModal && (
-
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-                        <div className="bg-white p-6 rounded-lg w-96" >
-
-                            <h2 className="text-xl font-bold text-red-600 mb-4">
-                                Mandatory Form Details
-                            </h2>
-                            <ul>{validationErrors.map(error => <li key={error}>{error}</li>)}</ul>
-
-                            <button
-                                onClick={() =>
-                                    setShowErrorModal(false)
-                                }
-                                className="mt-6 bg-blue-600 text-white px-4 py-2 rounded">
-                                OK
-                            </button>
-
-                        </div>
-
-                    </div>
-                )
-            }
         </div>
 
     );
